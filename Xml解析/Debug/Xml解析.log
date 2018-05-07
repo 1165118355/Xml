@@ -1,0 +1,10 @@
+﻿  Xml.cpp
+e:\code\vs\c++\xml解析\xml解析\xml.h(14): warning C4094: 无标记的“struct”未声明符号
+  正在生成代码...
+e:\code\vs\c++\xml解析\xml解析\xml.cpp(51): warning C4715: “WaterBox::Xml::checkNumChild”: 不是所有的控件路径都返回值
+  正在编译...
+  main.cpp
+e:\code\vs\c++\xml解析\xml解析\xml.h(14): warning C4094: 无标记的“struct”未声明符号
+e:\code\vs\c++\xml解析\xml解析\main.cpp(7): error C2039: “open”: 不是“WaterBox::Xml”的成员
+  e:\code\vs\c++\xml解析\xml解析\xml.h(16): note: 参见“WaterBox::Xml”的声明
+  正在生成代码...

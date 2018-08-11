@@ -1,0 +1,4 @@
+﻿  Xml.cpp
+e:\code\vs\c++\xml解析\xml解析\xml.cpp(136): warning C4267: “return”: 从“size_t”转换到“int”，可能丢失数据
+  Xml解析.vcxproj -> E:\Code\vs\C++\Xml解析\x64\Debug\Xml解析.exe
+  Xml解析.vcxproj -> E:\Code\vs\C++\Xml解析\x64\Debug\Xml解析.pdb (Full PDB)

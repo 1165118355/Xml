@@ -13,12 +13,14 @@ int main()
 	xml->setTag("six", "boy");
 	xml->addChild(SDL2_Xml::create("uu"));
 	xml->addChild(SDL2_Xml::create("oo"));
+	xml->setData("2333");
 
 	SDL2_Xml *childFire = SDL2_Xml::create("fire");
 	childFire->setTag("type", "Dynamic");
 	childFire->setTag("six", "girl");
 	childFire->addChild(SDL2_Xml::create("123"));
 	xml->addChild(childFire);
+	childFire->setData("4567");
 
 	xml->save("waterBOx.xml");
 

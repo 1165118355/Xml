@@ -1,10 +1,12 @@
 #include "Xml.h"
+#pragma warning(disable:4996)
 
 using namespace WaterBox;
 
 WaterBox::SDL2_Xml::SDL2_Xml()
 {
 	m_Name = "";
+	m_Parent = nullptr;
 	m_Hierarchy=0;
 }
 
@@ -16,22 +18,33 @@ WaterBox::SDL2_Xml::~SDL2_Xml()
 	}
 }
 
-void WaterBox::SDL2_Xml::writeTraverseChild(std::fstream & file, SDL2_Xml * xmlNode)
+void WaterBox::SDL2_Xml::writeTraverseChild(std::string & file, SDL2_Xml * xmlNode)
 {
 	for (int i=0; i<xmlNode->getHierarchy(); ++i)
 	{
-		file << "\t";
+		file += "\t";
 	}
 	//	开始
-	file << "<" << xmlNode->getName();
+	file += std::string("<") + xmlNode->getName();
 
 	//	添加标签
 	std::map<std::string, std::string> *nowTag = xmlNode->getAllTag();
-	for (std::map<std::string, std::string>::iterator it= nowTag->begin(); it != nowTag->end(); ++it)
+	for (std::map<std::string, std::string>::iterator it = nowTag->begin(); it != nowTag->end(); ++it)
 	{
-		file << " " << it->first << "=" << "\"" << it->second << "\"" ;
+		file += std::string(" ") + it->first + std::string("=\"") + it->second + std::string("\"");
 	}
-	file << ">\n";
+	file += ">\n";
+
+
+	//	数据
+	if (!xmlNode->getData().empty())
+	{
+		for (int i = 0; i<xmlNode->getHierarchy(); ++i)
+		{
+			file += "\t";
+		}
+		file += std::string("\t") + std::string(xmlNode->getData().c_str()) + std::string("\n");
+	}
 
 	//	子结点继续遍历
 	for (int i = 0; i<xmlNode->getNumChild(); ++i)
@@ -46,43 +59,52 @@ void WaterBox::SDL2_Xml::writeTraverseChild(std::fstream & file, SDL2_Xml * xmlN
 
 	for (int i = 0; i<xmlNode->getHierarchy(); ++i)
 	{
-		file << "\t";
+		file += "\t";
 	}
 	//	结束
-	file << "</" << xmlNode->getName() << ">\n";
+	file += std::string("</") + xmlNode->getName() + std::string(">\n");
 }
 
 SDL2_Xml * WaterBox::SDL2_Xml::create()
 {
 	SDL2_Xml *xml = new SDL2_Xml();
+	xml->m_Self = xml;
 	return xml;
 }
 
-SDL2_Xml * WaterBox::SDL2_Xml::create(std::string name, int mode/*=0*/)
+SDL2_Xml * WaterBox::SDL2_Xml::create(std::string name)
 {
-	SDL2_Xml *xml = new SDL2_Xml();
-	switch (mode)
-	{
-	case 0:
-		xml->setName(name);
-		break;
-	case 1:
-		xml->load(name);
-		break;
-	}
+	SDL2_Xml *xml = SDL2_Xml::create();
+	xml->setName(name);
+	return xml;
+}
+
+SDL2_Xml * WaterBox::SDL2_Xml::create(std::string name, SDL2_Xml * parent)
+{
+	SDL2_Xml *xml = SDL2_Xml::create();
+	xml->setName(name);
+	xml->setParent(parent);
 	return xml;
 }
 
 int WaterBox::SDL2_Xml::load(std::string path)
 {
 	std::fstream file(path, std::ios::in);
-	if (!file.is_open())						//	判断文件是否被打开
+	if (!file.is_open())				
 	{
 		std::cout << "path error\n";
 		file.close();
 		return -1;
 	}
-	readTraverseChild(file, this);
+	std::string parseStr;
+	char buffer[233];
+	while(!file.eof())
+	{
+		file.read(buffer, 233);
+		parseStr += buffer;
+	}
+	file.close();
+	parse(parseStr); 
 	save("tempCheck.xml");
 	return 0;
 }
@@ -92,8 +114,9 @@ int WaterBox::SDL2_Xml::save(std::string path)
 	std::fstream file(path, std::ios::out);
 
 	//	通过递归的方式遍历所有的节点，并将节点 的信息写入file
-	writeTraverseChild(file, this);
-
+	std::string fileStr;
+	writeTraverseChild(fileStr, m_Self);
+	file << fileStr.c_str();
 	file.close();
 	return 0;
 }
@@ -104,7 +127,7 @@ int WaterBox::SDL2_Xml::addChild(SDL2_Xml * child)
 	{
 		return -1;
 	}
-	child->setParent(this);
+	child->setParent(m_Self);
 	child->sortHierarchy();
 	m_Child.push_back(child);
 	return 0;
@@ -163,12 +186,33 @@ int WaterBox::SDL2_Xml::setTag(std::string name, std::string data)
 	return 1;
 }
 
+int WaterBox::SDL2_Xml::setTag(std::string name, int data)
+{
+	char ch[30];
+	sprintf(ch, "%d", data);
+	return setTag(name, ch);
+}
+
+int WaterBox::SDL2_Xml::setTag(std::string name, float data)
+{
+	char ch[30];
+	sprintf(ch, "%f", data);
+	return setTag(name, ch);
+}
+
+int WaterBox::SDL2_Xml::setTag(std::string name, double data)
+{
+	char ch[30];
+	sprintf(ch, "%f", data);
+	return setTag(name, ch);
+}
+
 std::string WaterBox::SDL2_Xml::getTag(std::string name)
 {
 	std::map<std::string, std::string>::iterator it = m_Tag.find(name);
 	if (it == m_Tag.end())
 	{
-		return NULL;
+		return "";
 	}
 	return it->second;
 }
@@ -179,9 +223,213 @@ void WaterBox::SDL2_Xml::addTag(std::string name, std::string data)
 	m_Tag.insert(pa);
 }
 
+void WaterBox::SDL2_Xml::setData(std::string data)
+{
+	m_Data = data;
+}
+
+std::string WaterBox::SDL2_Xml::getData()
+{
+	return m_Data;
+}
+
+void WaterBox::SDL2_Xml::parse(std::string parseStr)
+{
+	int i = 0;
+	parse(parseStr, i, m_Self);
+}
+
+std::string WaterBox::SDL2_Xml::getTree()
+{
+	//	写， 将child中的信息写入file
+	std::string file;
+	writeTraverseChild(file, m_Self);
+	return file;
+}
+
+bool WaterBox::SDL2_Xml::parse(std::string parseStr, int &nowSub, SDL2_Xml * xmlNode)
+{
+
+	int flag = INPUT_OTHER;
+	char buffer[2] = "";
+	char bufferTemp[2] = "";
+	std::string nodeBuffer;
+	std::string name;
+	std::string tagName;
+	std::string tagData;
+	std::string data;
+
+	//	检查前标记，例如：<xyz tag="233">
+	while (nowSub <  parseStr.size() && flag != INPUT_DATA)
+	{
+		buffer[0] = parseStr[nowSub];
+		nowSub++;
+		switch (buffer[0])
+		{
+		case '<':
+			buffer[0] = parseStr[nowSub];
+			if (buffer[0] != '/')
+			{
+				flag = INPUT_NAME;
+			}
+			else
+			{
+				//	上来就检查到这是一个结束标记，我甚至不知道该怎么办了，姑且先返回一个空吧
+				return false;
+			}
+			break;
+		case '>':
+			if (flag == INPUT_NAME)
+			{
+				xmlNode->setName(name);
+			}
+			else if (flag == INPUT_TAG_DATA)
+			{
+				if ((!tagName.empty()) && (!tagData.empty()))
+				{
+					if (tagData[tagData.size() - 1] == '"')
+					{
+						tagData.resize(tagData.size() - 1);
+					}
+					xmlNode->addTag(tagName, tagData);
+				}
+			}
+			flag = INPUT_DATA;
+			break;
+		case '=':
+			if (flag == INPUT_TAG_NAME)
+			{
+				flag = INPUT_TAG_DATA;
+				bufferTemp[0] = parseStr[nowSub];
+				if (bufferTemp[0] == '"')
+				{
+					nowSub++;
+				}
+			}
+			else
+			{
+				//	当出现了不应该出现的东西时，我甚至不知道该怎么办，只好姑且先给你个空试试
+				return false;
+			}
+			break;
+		case ' ':
+			if (flag == INPUT_NAME)
+			{
+				flag = INPUT_TAG_NAME;
+				xmlNode->setName(name);
+				name = "";
+			}
+			else if (flag == INPUT_TAG_DATA)
+			{
+				flag = INPUT_TAG_NAME;
+				if ((!tagName.empty()) && (!tagData.empty()))
+				{
+					if (tagData[tagData.size() - 1] == '"')
+					{
+						tagData.resize(tagData.size() - 1);
+					}
+					xmlNode->addTag(tagName, tagData);
+					tagName = "";
+					tagData = "";
+				}
+			}
+			break;
+		default:
+			switch (flag)
+			{
+			case INPUT_NAME:
+				name += buffer;
+				break;
+			case INPUT_TAG_NAME:
+				tagName += buffer;
+				break;
+			case INPUT_TAG_DATA:
+				tagData += buffer;
+				break;
+			}
+			break;
+		}
+		nodeBuffer += buffer;
+	}
+
+	//	检查Data咯，例如：xxooxxoo
+	while (nowSub < parseStr.size()  && flag != NONE)
+	{
+		buffer[0] = parseStr[nowSub];
+		buffer[1] = '\0';
+		if (buffer[0] == '<')
+		{
+			flag = NONE;
+			break;
+		}
+		if (buffer[0] != '\n' && buffer[0] != '\t')
+		{
+			nodeBuffer += buffer;
+			data += buffer;
+		}
+		nowSub++;
+	}
+	xmlNode->setData(data);
+
+	//	检查后标记，例如：</xyz>
+	while (nowSub < parseStr.size())
+	{
+		buffer[0] = parseStr[nowSub];
+		nowSub++;
+		if (buffer[0] == '<')
+		{
+			buffer[0] = parseStr[nowSub];
+			if (buffer[0] == '/')
+			{
+				nodeBuffer += "</";
+				while (nowSub < parseStr.size())
+				{
+					buffer[0] = parseStr[nowSub];
+					++nowSub;
+					buffer[1] = '\0';
+					nodeBuffer += buffer;
+					if (buffer[0] == '>')
+					{
+						return true;
+					}
+				}
+			}
+			else
+			{
+				--nowSub;
+				SDL2_Xml *childXml = SDL2_Xml::create();
+				if (parse(parseStr, nowSub, childXml))
+				{
+					xmlNode->addChild(childXml);
+				}
+				else
+				{
+					delete childXml;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 int WaterBox::SDL2_Xml::getHierarchy()
 {
 	return m_Hierarchy;
+}
+
+void WaterBox::SDL2_Xml::clear(int child /*=0*/)
+{
+	m_Name = "";
+	m_Tag.clear();
+	m_Parent = nullptr;
+	if(1 == child)
+	{
+		for (int i=0; i<this->getNumChild(); ++i)
+		{
+			delete this->getChild(i);
+		}
+		m_Child.clear();
+	}
 }
 
 std::map<std::string, std::string> *WaterBox::SDL2_Xml::getAllTag()
@@ -216,75 +464,5 @@ void WaterBox::SDL2_Xml::sortHierarchy()
 	for (int i=0; i<m_Child.size(); ++i)
 	{
 		m_Child[i]->sortHierarchy();
-	}
-}
-
-void WaterBox::SDL2_Xml::readTraverseChild(std::fstream & file, SDL2_Xml * xmlNode)
-{
-	//	判断名字
-	//	取出tag
-	//	检查子节点
-	std::string tBuffer;
-	do
-	{
-		//	从文件取出一行字符串
-		file >> tBuffer;
-
-		//	如果这一行异常就结束这一行的检索
-		if (tBuffer.size() < 3)
-		{
-			break;
-		}
-
-		//	判断这一行是否是结束标记
-		if (tBuffer[0] == '<' && tBuffer[1] == '/')
-		{
-			delete xmlNode;
-			return;
-		}
-
-		//	获取节点名字
-		if (tBuffer[0] == '<' && tBuffer[1] != '/' && tBuffer[tBuffer.size()-1] == '>')
-		{
-			xmlNode->setName(tBuffer.substr(1, tBuffer.size()-2));
-		}
-		else if (tBuffer[0] == '<' && tBuffer[1] != '/')
-		{
-			xmlNode->setName(tBuffer.substr(1, tBuffer.size()-1));
-		}
-
-		//	获取结点Tag
-		if (tBuffer[0] != '<')
-		{
-			std::string paName = tBuffer.substr(0, tBuffer.find('=')-0);
-			std::string paData="";
-			if (tBuffer[tBuffer.size()-1] == '>')
-			{
-				paData = tBuffer.substr(tBuffer.find('=') + 2, tBuffer.size() - (tBuffer.find('=') +2)-2);
-			}
-			else
-			{
-				paData = tBuffer.substr(tBuffer.find('=') + 2, tBuffer.size() - (tBuffer.find('=') + 2)-1);
-			}
-			xmlNode->addTag(paName, paData);
-		}
-	}while (!file.eof() && tBuffer[tBuffer.size() - 1] != '>');
-
-	
-	//	递归遍历子节点
-	while (!file.eof())
-	{
-		file >> tBuffer;
-		if (tBuffer[0] == '<' && tBuffer[1] == '/')
-		{
-			return;
-		}
-		else
-		{
-			file.seekg(0-tBuffer.size(), std::ios::cur);
-			SDL2_Xml *xmlChild = SDL2_Xml::create();
-			xmlNode->addChild(xmlChild);
-			readTraverseChild(file, xmlChild);
-		}
 	}
 }
